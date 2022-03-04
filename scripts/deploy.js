@@ -1,25 +1,20 @@
 const { ethers } = require("hardhat");
-const { LOAN_TOKEN, TERMS} = require("../constants");
 require("dotenv").config({ path: ".env" });
 
 
 
 async function main() {
   
-  // const terms = terms;
-  const contractAddress = LOAN_TOKEN;
-  const LoanTerms = TERMS;
-
   const loanContract = await ethers.getContractFactory("Loan");
 
   
-  const deployedLoanContract = await loanContract.deploy(
-     contractAddress, LoanTerms
-  );
+  const deployedLoanContract = await loanContract.deploy();
   await deployedLoanContract.deployed();
 
   
   console.log("Loan Contract Address:", deployedLoanContract.address);
+
+  
 }
 
 

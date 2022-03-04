@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 contract Loan {
   address payable public lender;
   address payable public borrower;
-  address public contractAddress;
+  address public owner;
     
     struct Terms {
       uint loanAmount;
@@ -31,17 +31,14 @@ contract Loan {
         _;
     }
 
-    constructor(Terms memory _terms, address _contractAddress) {
-        terms = _terms;
-        contractAddress = _contractAddress;
-        lender = payable(msg.sender);
-        stage = LoanStage.Requested;
+    constructor() {
+        owner = msg.sender;
     }
 
     function LoanRequest() public onlyInStage(LoanStage.Requested)
     {
         stage = LoanStage.Accepted;
-        ERC20(contractAddress).transferFrom(
+        ERC20(owner).transferFrom(
             msg.sender,
             address(this),
             terms.loanAmount
@@ -53,29 +50,40 @@ contract Loan {
         require(msg.value == terms.loanAmount);
         borrower = payable(msg.sender);
         stage = LoanStage.Repaid;
-        ERC20(contractAddress).transfer(
+        ERC20(owner).transfer(
             borrower,
             terms.loanAmount
         );
-        emit LoanRequestAccepted(contractAddress);
+        emit LoanRequestAccepted(owner);
+    }
+
+    function repayAmount() public payable onlyInStage(LoanStage.Repaid) {
+      require(msg.sender == borrower);
+      require(msg.value == terms.loanAmount + terms.collateralAmount);
+      ERC20(owner).transferFrom(borrower, lender, terms.loanAmount + terms.collateralAmount);
     }
 
     event LoanPaid();
     function payLoan() public payable onlyInStage(LoanStage.Repaid) {
         require(block.timestamp <= terms.dueDate);
-        require(msg.value == terms.payoffAmount);
-        ERC20(contractAddress).transferFrom(
+        require(msg.value == terms.loanAmount + terms.collateralAmount);
+
+        if (block.timestamp <= terms.dueDate) {
+        ERC20(owner).transferFrom(
             borrower,
             lender,
-            terms.collateralAmount
+            terms.loanAmount + terms.collateralAmount
         );
          emit LoanPaid();
         selfdestruct(borrower);
+        }
+        else 
+        return;
     }
 
     function repossess() public onlyInStage(LoanStage.Repossessed) {
         require(block.timestamp > terms.dueDate);
-        ERC20(contractAddress).transferFrom(
+        ERC20(owner).transferFrom(
             borrower,
             lender,
             terms.collateralAmount
